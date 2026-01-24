@@ -86,3 +86,6 @@ __pycache__/
 
 # AI slop
 .claude/
+
+# Created by `nix build`
+result
