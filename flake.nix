@@ -46,10 +46,6 @@
           buildInputs = [
             pkgs.pcre2
             pkgs.libiconv
-          ]
-          ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
-            pkgs.darwin.apple_sdk.frameworks.CoreFoundation
-            pkgs.darwin.apple_sdk.frameworks.Security
           ];
 
           # Environment variables for pcre2
