@@ -14,50 +14,50 @@
       flake-utils,
       crane,
     }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
-        craneLib = crane.mkLib pkgs;
+    let
+      mkFish =
+        pkgs:
+        let
+          craneLib = crane.mkLib pkgs;
 
-        # Source including Cargo/Rust files plus extra directories needed for build
-        src = pkgs.lib.fileset.toSource {
-          root = ./.;
-          fileset = pkgs.lib.fileset.unions [
-            (craneLib.fileset.commonCargoSources ./.)
-            ./share
-            ./doc_src
-            ./build_tools
-            ./localization
-          ];
-        };
+          # Source including Cargo/Rust files plus extra directories needed for build
+          src = pkgs.lib.fileset.toSource {
+            root = ./.;
+            fileset = pkgs.lib.fileset.unions [
+              (craneLib.fileset.commonCargoSources ./.)
+              ./share
+              ./doc_src
+              ./build_tools
+              ./localization
+            ];
+          };
 
-        # Common arguments for crane builds
-        commonArgs = {
-          inherit src;
+          # Common arguments for crane builds
+          commonArgs = {
+            inherit src;
 
-          nativeBuildInputs = [
-            pkgs.pkg-config
-            pkgs.cmake
-            pkgs.sphinx
-            pkgs.gettext
-          ];
+            nativeBuildInputs = [
+              pkgs.pkg-config
+              pkgs.cmake
+              pkgs.sphinx
+              pkgs.gettext
+            ];
 
-          buildInputs = [
-            pkgs.pcre2
-            pkgs.libiconv
-          ];
+            buildInputs = [
+              pkgs.pcre2
+              pkgs.libiconv
+            ];
 
-          # Environment variables for pcre2
-          PCRE2_LIB_DIR = "${pkgs.pcre2.out}/lib";
-          PCRE2_INCLUDE_DIR = "${pkgs.pcre2.dev}/include";
-        };
+            # Environment variables for pcre2
+            PCRE2_LIB_DIR = "${pkgs.pcre2.out}/lib";
+            PCRE2_INCLUDE_DIR = "${pkgs.pcre2.dev}/include";
+          };
 
-        # Build just the cargo dependencies for caching
-        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-
+          # Build just the cargo dependencies for caching
+          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+        in
         # Build the fish package
-        fish = craneLib.buildPackage (
+        craneLib.buildPackage (
           commonArgs
           // {
             inherit cargoArtifacts;
@@ -93,6 +93,18 @@
             };
           }
         );
+    in
+    {
+      overlays.default = final: prev: {
+        fish = mkFish final;
+      };
+    }
+    // flake-utils.lib.eachDefaultSystem (
+      system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+        craneLib = crane.mkLib pkgs;
+        fish = mkFish pkgs;
       in
       {
         packages = {
