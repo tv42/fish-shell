@@ -3,7 +3,6 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
     crane.url = "github:ipetkov/crane";
   };
 
@@ -11,10 +10,16 @@
     {
       self,
       nixpkgs,
-      flake-utils,
       crane,
     }:
     let
+      forAllSystems = nixpkgs.lib.genAttrs [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
+
       mkFish =
         pkgs:
         let
@@ -98,41 +103,47 @@
       overlays.default = final: prev: {
         fish = mkFish final;
       };
-    }
-    // flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
-        craneLib = crane.mkLib pkgs;
-        fish = mkFish pkgs;
-      in
-      {
-        packages = {
+
+      packages = forAllSystems (
+        system:
+        let
+          fish = mkFish nixpkgs.legacyPackages.${system};
+        in
+        {
           default = fish;
           inherit fish;
-        };
+        }
+      );
 
-        devShells.default = craneLib.devShell {
-          # Inherit inputs from the main package
-          inputsFrom = [ fish ];
+      devShells = forAllSystems (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+          craneLib = crane.mkLib pkgs;
+        in
+        {
+          default = craneLib.devShell {
+            # Inherit inputs from the main package
+            inputsFrom = [ self.packages.${system}.fish ];
 
-          # Extra tools for development
-          packages = with pkgs; [
-            cargo
-            rustc
-            rust-analyzer
-            clippy
-            rustfmt
+            # Extra tools for development
+            packages = with pkgs; [
+              cargo
+              rustc
+              rust-analyzer
+              clippy
+              rustfmt
 
-            # Testing dependencies
-            (python3.withPackages (
-              ps: with ps; [
-                pexpect
-              ]
-            ))
-            tmux
-          ];
-        };
-      }
-    );
+              # Testing dependencies
+              (python3.withPackages (
+                ps: with ps; [
+                  pexpect
+                ]
+              ))
+              tmux
+            ];
+          };
+        }
+      );
+    };
 }
